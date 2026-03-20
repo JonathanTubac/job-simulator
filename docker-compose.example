@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./resources/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  back:
+    build: ./backend
+    container_name: api
+    restart: always
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db  
+      DB_DATABASE: ${DB_DATABASE}
+      DB_PORT: ${DB_PORT}
+      PORT: ${PORT}
+    depends_on:
+      - db
+
+  front:
+    build: ./frontend
+    container_name: frontend
+    restart: always
+    ports:
+      - "8088:80"
+    depends_on:
+      - back
