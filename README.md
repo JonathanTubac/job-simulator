@@ -168,7 +168,7 @@ El script también inserta 25 registros de ejemplo para demostración.
 
 ## Endpoints de la API
 
-Base URL: `http://localhost:3000`
+Base URL: `http://localhost:8080/api`
 
 | Método | Ruta | Descripción | Código éxito |
 |--------|------|-------------|-------------|
@@ -210,19 +210,19 @@ Base URL: `http://localhost:3000`
 ### Listar todos los productos
 
 ```bash
-curl http://localhost:3000/products
+curl http://localhost:8080/api/products
 ```
 
 ### Obtener un producto por ID
 
 ```bash
-curl http://localhost:3000/products/1
+curl http://localhost:8080/api/products/1
 ```
 
 ### Crear un producto
 
 ```bash
-curl -X POST http://localhost:3000/products \
+curl -X POST http://localhost:8080/api/products \
   -H "Content-Type: application/json" \
   -d '{
     "name": "RTX 4090",
@@ -237,7 +237,7 @@ curl -X POST http://localhost:3000/products \
 ### Actualización completa (PUT)
 
 ```bash
-curl -X PUT http://localhost:3000/products/1 \
+curl -X PUT http://localhost:8080/api/products/1 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "RTX 4090 Ti",
@@ -252,7 +252,7 @@ curl -X PUT http://localhost:3000/products/1 \
 ### Actualización parcial (PATCH)
 
 ```bash
-curl -X PATCH http://localhost:3000/products/1 \
+curl -X PATCH http://localhost:8080/api/products/1 \
   -H "Content-Type: application/json" \
   -d '{
     "price": 13999.99,
@@ -265,7 +265,7 @@ Solo los campos enviados son modificados; el resto permanece sin cambios.
 ### Eliminar un producto
 
 ```bash
-curl -X DELETE http://localhost:3000/products/1
+curl -X DELETE http://localhost:8080/api/products/1
 ```
 
 ### Códigos de error
