@@ -1,171 +1,332 @@
-# Job Simulator — REST CRUD API
+# 🛒 Products API — Job Simulator
 
-## Descripción
-
-Se requiere construir una API REST con operaciones CRUD completas, persistencia en base de datos relacional y entorno containerizado. El dominio del recurso queda a criterio del desarrollador.
-
-El sistema será consumido por un cliente frontend ya existente. La API debe cumplir el contrato definido en este documento de forma exacta. Cualquier desviación del contrato se considera un fallo de integración.
+API REST CRUD completa para gestión de productos, construida con **Node.js + Express + PostgreSQL**, totalmente containerizada con Docker. Proyecto entregado a **nivel Senior** con integración full stack y personalización del frontend.
 
 ---
 
-## Condiciones de trabajo
+## 📋 Tabla de contenido
 
-Eres un desarrollador backend contratado para entregar un sistema funcional en un tiempo determinado. El pago se acredita únicamente si el sistema es entregado en tiempo y cumple el contrato en su totalidad.
-
-Las siguientes condiciones resultan en terminación del contrato sin compensación parcial:
-
-- El repositorio contiene archivos que no deben ser versionados (`node_modules`, `vendor`, `.env`, binarios, archivos de sistema operativo)
-
-- Entrega fuera del plazo establecido
-- El sistema no levanta con un único comando
-- Algún endpoint no responde o responde de forma incorrecta
-- Los códigos de respuesta HTTP no son los correctos según el estándar REST
-- Las validaciones no están implementadas
-- Los tipos de datos no son respetados
-- Las respuestas no son JSON
-- Almacenamiento en memoria en lugar de base de datos relacional
-- El API no interactua de forma correcta con el frontend.
-
-El nivel de contratación determina el máximo de compensación posible. No existe compensación parcial dentro de un nivel.
+- [Descripción general](#descripción-general)
+- [Stack tecnológico](#stack-tecnológico)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Requisitos previos](#requisitos-previos)
+- [Instalación y ejecución](#instalación-y-ejecución)
+- [Variables de entorno](#variables-de-entorno)
+- [Esquema de base de datos](#esquema-de-base-de-datos)
+- [Endpoints de la API](#endpoints-de-la-api)
+- [Ejemplos de uso](#ejemplos-de-uso)
+- [Niveles de contratación](#niveles-de-contratación)
+- [Bonus implementados](#bonus-implementados)
 
 ---
 
-## Contrato de la API
+## Descripción general
+
+Sistema CRUD completo para el recurso **Products** (productos). Expone una API REST consumida por un cliente frontend provisto. La API cumple el contrato definido por el simulador: campos tipados, validaciones, códigos HTTP estándar y persistencia relacional.
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
+| Runtime | Node.js 20 (ES Modules) |
+| Framework | Express 4 |
+| Base de datos | PostgreSQL |
+| Driver DB | `pg` (node-postgres) |
+| CORS | `cors` |
+| Containerización | Docker + Docker Compose |
+| Frontend | Nginx (Alpine) |
+
+---
+
+## Estructura del proyecto
+
+```
+job-simulator/
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+│       ├── server.js              # Punto de entrada, arranque del servidor
+│       ├── app.js                 # Configuración de Express y middlewares
+│       ├── config/
+│       │   └── db.js              # Conexión a PostgreSQL con reintentos
+│       ├── controllers/
+│       │   └── product.controllers.js  # Lógica HTTP de cada endpoint
+│       ├── models/
+│       │   └── product.model.js   # Queries SQL
+│       └── routes/
+│           └── product.routes.js  # Definición de rutas
+├── frontend/
+│   ├── Dockerfile                 # Imagen Nginx
+│   ├── nginx.conf                 # Configuración del servidor web
+│   ├── docker-compose.yml.example
+│   └── public/                    # Archivos estáticos del cliente
+├── resources/
+│   └── init.sql                   # Script de inicialización del esquema + seed data
+├── docker-compose.yml             # Orquestación completa (API + DB + Frontend)
+├── .env.example                   # Variables de entorno documentadas
+└── .gitignore
+```
+
+---
+
+## Requisitos previos
+
+- [Docker](https://docs.docker.com/get-docker/) ≥ 20
+- [Docker Compose](https://docs.docker.com/compose/) ≥ 2 (incluido en Docker Desktop)
+
+No se requiere Node.js ni PostgreSQL instalados localmente.
+
+---
+
+## Instalación y ejecución
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/JonathanTubac/job-simulator.git
+cd job-simulator
+```
+
+### 2. Configurar variables de entorno
+
+```bash
+cp .env.example .env
+```
+
+Edita `.env` si necesitas cambiar valores (opcional; los valores del ejemplo funcionan por defecto).
+
+### 3. Levantar el sistema completo
+
+```bash
+docker-compose up --build
+```
+
+Esto levanta tres servicios en orden:
+
+| Servicio | Puerto local | Descripción |
+|----------|-------------|-------------|
+| `db` | 5432 | PostgreSQL con esquema e inicialización automática |
+| `api` | 3000 | REST API (espera a que la DB esté lista) |
+| `frontend` | 8088 | Cliente web (Nginx) |
+
+> La API no arranca hasta que PostgreSQL acepta conexiones. No se requiere intervención manual.
+
+### 4. Verificar que todo está corriendo
+
+```bash
+# Health check de la API
+curl http://localhost:3000/products
+
+# Abrir el frontend en el navegador
+open http://localhost:8088
+```
+
+---
+
+## Variables de entorno
+
+Copia `.env.example` como `.env` y ajusta según tu entorno:
+
+```env
+# Base de datos
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=db
+DB_PORT=5432
+DB_DATABASE=productsdb
+
+# API
+PORT=3000
+```
+
+> ⚠️ Nunca versiones el archivo `.env`. Está incluido en `.gitignore`.
+
+---
+
+## Esquema de base de datos
+
+La tabla `products` se crea automáticamente al primer arranque mediante `resources/init.sql`:
+
+```sql
+CREATE TABLE IF NOT EXISTS products (
+    id       INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name     VARCHAR(100) NOT NULL,   -- campo1: string, requerido
+    category VARCHAR(100) NOT NULL,   -- campo2: string, requerido
+    brand    VARCHAR(100) NOT NULL,   -- campo3: string, requerido
+    stock    INTEGER NOT NULL,        -- campo4: integer, requerido
+    price    REAL NOT NULL,           -- campo5: float, requerido
+    available BOOLEAN NOT NULL        -- campo6: boolean, requerido
+);
+```
+
+El script también inserta 25 registros de ejemplo para demostración.
+
+---
+
+## Endpoints de la API
+
+Base URL: `http://localhost:3000`
+
+| Método | Ruta | Descripción | Código éxito |
+|--------|------|-------------|-------------|
+| `GET` | `/products` | Listar todos los productos | `200 OK` |
+| `GET` | `/products/:id` | Obtener un producto por ID | `200 OK` |
+| `POST` | `/products` | Crear un nuevo producto | `201 Created` |
+| `PUT` | `/products/:id` | Actualizar un producto completo | `200 OK` |
+| `PATCH` | `/products/:id` | Actualizar campos parciales | `200 OK` |
+| `DELETE` | `/products/:id` | Eliminar un producto | `200 OK` |
 
 ### Estructura del recurso
 
-El recurso expone los siguientes campos con nombres fijos:
+```json
+{
+  "id":        1,
+  "name":      "MacBook Air M1",
+  "category":  "Electronics",
+  "brand":     "Apple",
+  "stock":     5,
+  "price":     9500.99,
+  "available": true
+}
+```
 
-| Campo  | Tipo    | Restricciones              |
-| ------ | ------- | -------------------------- |
-| id     | integer | primary key, autoincrement |
-| campo1 | string  | requerido                  |
-| campo2 | string  | requerido                  |
-| campo3 | string  | requerido                  |
-| campo4 | integer | requerido                  |
-| campo5 | float   | requerido                  |
-| campo6 | boolean | requerido                  |
-
-El dominio es libre. Los nombres internos en base de datos y lógica de negocio quedan a criterio del desarrollador.
-
----
-
-### Endpoints
-
-Se requiere implementar los métodos `GET`, `POST`, `PUT` y `DELETE`. El nombre del recurso en la ruta debe seguir las convenciones REST estándar.
-
----
-
-### Validaciones
-
-Todos los campos son requeridos. Los tipos deben ser respetados estrictamente: `campo4` es entero, `campo5` es decimal, `campo6` es booleano.
+| Campo | Tipo | Requerido | Notas |
+|-------|------|-----------|-------|
+| `id` | integer | — | Auto-generado |
+| `name` | string | ✅ | Nombre del producto |
+| `category` | string | ✅ | Categoría |
+| `brand` | string | ✅ | Marca |
+| `stock` | integer | ✅ | Cantidad en inventario |
+| `price` | float | ✅ | Precio decimal |
+| `available` | boolean | ✅ | Disponibilidad |
 
 ---
 
-### Códigos de respuesta
+## Ejemplos de uso
 
-El uso correcto de códigos HTTP es parte del contrato con el cliente. Todas las respuestas son JSON.
+### Listar todos los productos
 
----
+```bash
+curl http://localhost:3000/products
+```
 
-## Stack
+### Obtener un producto por ID
 
-- Lenguaje: Javascript, PHP o Rust — no se aceptan Go ni Python
-- Base de datos: relacional, sin almacenamiento en memoria
-- Containerización: Docker obligatorio
+```bash
+curl http://localhost:3000/products/1
+```
 
-En la carpeta `resources/` se incluyen Dockerfiles de referencia para cada lenguaje y base de datos, y un `.env.example`.
+### Crear un producto
+
+```bash
+curl -X POST http://localhost:3000/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "RTX 4090",
+    "category": "Electronics",
+    "brand": "NVIDIA",
+    "stock": 3,
+    "price": 15999.99,
+    "available": true
+  }'
+```
+
+### Actualización completa (PUT)
+
+```bash
+curl -X PUT http://localhost:3000/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "RTX 4090 Ti",
+    "category": "Electronics",
+    "brand": "NVIDIA",
+    "stock": 2,
+    "price": 17999.99,
+    "available": false
+  }'
+```
+
+### Actualización parcial (PATCH)
+
+```bash
+curl -X PATCH http://localhost:3000/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "price": 13999.99,
+    "available": true
+  }'
+```
+
+Solo los campos enviados son modificados; el resto permanece sin cambios.
+
+### Eliminar un producto
+
+```bash
+curl -X DELETE http://localhost:3000/products/1
+```
+
+### Códigos de error
+
+| Código | Situación |
+|--------|-----------|
+| `500 Internal Server Error` | Error interno del servidor o DB |
 
 ---
 
 ## Niveles de contratación
 
-La evaluación es **pasa o no pasa**. Indicar el nivel seleccionado al momento de la entrega.
+Este proyecto fue entregado a **Nivel 3 — Senior**, cumpliendo todos los requisitos acumulados:
 
----
-
-### Nivel 1 — Junior `(máximo 70/100)`
-
-**Base de datos:** SQLite
-
-**Infraestructura:** `docker-compose.yml` con un único servicio. La base de datos corre embebida dentro del mismo contenedor que la aplicación. `docker-compose up` debe levantar el sistema completo y funcional sin intervención manual.
-
-**Requisitos:**
+### ✅ Nivel 1 — Junior
 - Los cinco endpoints funcionan correctamente contra la base de datos
-- Todas las validaciones están implementadas y retornan los códigos HTTP correspondientes
-- La base de datos persiste los datos correctamente entre operaciones
+- Validaciones implementadas con los tipos de datos correctos
+- Persistencia de datos entre operaciones
 - `Dockerfile` y `docker-compose.yml` presentes y funcionales
 
----
+### ✅ Nivel 2 — Mid
+- Base de datos PostgreSQL en servicio separado
+- Variables de entorno para toda la configuración (sin hardcoding)
+- Manejo de errores de conexión a la base de datos
+- La API no arranca hasta que PostgreSQL esté disponible (reintentos automáticos)
 
-### Nivel 2 — Mid `(máximo 85/100)`
-
-**Base de datos:** PostgreSQL
-
-**Infraestructura:** `docker-compose.yml` con dos servicios independientes: aplicación y base de datos. La aplicación debe conectarse a PostgreSQL usando variables de entorno. Un único `docker-compose up` levanta el sistema completo y funcional.
-
-**Requisitos adicionales al Nivel 1:**
-- Archivo `.env` con todas las variables de configuración necesarias
-- Sin credenciales, puertos ni strings de conexión hardcodeados en el código
-- La aplicación maneja correctamente los errores de conexión a la base de datos
-- El servicio de la aplicación no inicia hasta que PostgreSQL esté disponible
-
----
-
-### Nivel 3 — Senior `(máximo 100/100)`
-
-**Base de datos:** PostgreSQL
-
-**Infraestructura:** igual que Nivel 2.
-
-**Requisitos adicionales al Nivel 2:**
-- Endpoint `PATCH` para actualizaciones parciales: solo se modifican los campos presentes en el body, el resto permanece sin cambios
-- `.env.example` en el repositorio con todas las variables necesarias documentadas, sin valores reales
-- `.gitignore` que excluya `node_modules`, `.env`, y archivos de sistema operativo
-- Script SQL de inicialización de esquema ejecutado automáticamente por Docker al primer arranque
-- Estructura de proyecto con separación clara de responsabilidades: configuración de base de datos, definición de rutas y punto de entrada en archivos distintos
-- Historial de commits que refleje un proceso de desarrollo incremental — no se acepta un único commit con todo el trabajo
+### ✅ Nivel 3 — Senior
+- Endpoint `PATCH` para actualizaciones parciales
+- `.env.example` documentado en el repositorio
+- `.gitignore` configurado correctamente
+- Script SQL de inicialización ejecutado automáticamente al primer arranque
+- Separación clara de responsabilidades: `config/`, `routes/`, `controllers/`, `models/`
+- Historial de commits incremental
 
 ---
 
-## Bonus
+## Bonus implementados
 
-Los puntos bonus se suman sobre la nota del nivel entregado. Cada bonus se evalúa de forma independiente.
+### ✅ Integración full stack (+10 puntos)
 
-### Integración full stack `(+10 puntos)`
+El `docker-compose.yml` principal incluye los tres servicios (API, base de datos y frontend). Un único `docker-compose up` levanta el sistema completo. El frontend consume la API sin configuración adicional.
 
-Integrar el frontend provisto en el mismo `docker-compose.yml` que la API.
+### ✅ Personalización del frontend (+5 puntos)
 
-Condiciones:
-- Un único `docker-compose.yml` levanta ambos servicios
-- El frontend consume la API sin configuración manual posterior al `docker-compose up`
-- Ambos servicios operativos con un solo comando
-
-### Personalización del frontend `(+5 puntos)`
-
-Adaptar el frontend para que refleje el dominio elegido: etiquetas en el idioma correcto, nombres de campos legibles, y cualquier ajuste visual que mejore la experiencia del usuario final.
-
-Condiciones:
-- El frontend no debe mostrar `campo1`, `campo2`, etc. — deben verse los nombres reales del dominio
-- Los cambios deben ser coherentes con el recurso implementado en la API
-- Aplica únicamente si el bonus de integración también fue completado
+El frontend muestra los nombres reales del dominio (`name`, `category`, `brand`, `stock`, `price`, `available`) en lugar de `campo1`, `campo2`, etc. Los cambios son coherentes con el recurso `products` implementado en la API.
 
 ---
 
-## Configuración del frontend
+## Desarrollo local (sin Docker)
 
-El frontend provisto requiere dos valores en `public/js/config.js`:
+Si deseas correr solo el backend localmente para desarrollo:
 
-```js
-window.API_URL = "http://localhost:8080"; // URL base de tu API
-window.RESOURCE = "products";             // Nombre del recurso en tu API
+```bash
+cd backend
+npm install
+# Configura las variables de entorno apuntando a tu PostgreSQL local
+node src/server.js
 ```
 
-`RESOURCE` debe coincidir exactamente con el nombre que usaste en las rutas de tu API.
-
 ---
 
-## Entrega
+## Licencia
 
-- Repositorio en GitHub con visibilidad pública
-- El sistema levanta con un único comando
+MIT
